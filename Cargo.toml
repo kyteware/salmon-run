@@ -1,0 +1,13 @@
+[package]
+name = "salmon-run"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+[dependencies.iced]
+git = "https://github.com/iced-rs/iced"
+rev = "b30d34f"
+# features = ["canvas"]
