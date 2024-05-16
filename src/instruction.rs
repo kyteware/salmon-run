@@ -5,7 +5,7 @@ pub enum Instruction {
     Forwards,
     Left,
     Right,
-    Back
+    Backwards
 }
 
 pub fn parse_code<'a>(i: &'a str) -> Result<Vec<Instruction>, Err<Error<&str>>> {
@@ -20,7 +20,7 @@ fn parse_instruction<'a>(i: &'a str) -> IResult<&'a str, Instruction> {
     alt((
         preceded(tag("move "), alt((
             tag("forwards").map(|_| Instruction::Forwards),
-            tag("backwards").map(|_| Instruction::Back),
+            tag("backwards").map(|_| Instruction::Backwards),
             tag("left").map(|_| Instruction::Left),
             tag("right").map(|_| Instruction::Right),
         ))),
