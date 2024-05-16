@@ -18,7 +18,7 @@ impl Level {
     }
 
     fn interpret(i: &str) -> Option<Level> {
-        let mut chars = i.chars().collect::<Vec<char>>();
+        let chars = i.chars().collect::<Vec<char>>();
         let mut level = Level::default();
         for line in 0..20 {
             for col in 0..10 {
@@ -37,7 +37,7 @@ impl Level {
             }
         }
 
-        level.number = dbg!((&chars[220..]).iter().collect::<String>()).parse::<u32>().ok()?;
+        level.number = (&chars[220..]).iter().collect::<String>().parse::<u32>().ok()?;
 
         Some(level)
     }

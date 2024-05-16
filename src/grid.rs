@@ -78,15 +78,6 @@ impl Grid {
         }
         self.tiles = tiles;
     }
-
-    pub fn reset_salmon(&mut self) {
-        self.salmon.clear();
-        for i in 0..10 {
-            if self.tiles[19][i] == Tile::Empty {
-                self.salmon.push(Salmon { coords: Coords::new(i, 19), next_instruction: 0 })
-            }
-        }
-    }
 }
 
 impl canvas::Program<Message> for Grid {

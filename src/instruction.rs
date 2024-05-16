@@ -1,51 +1,86 @@
-use nom::{branch::alt, bytes::complete::tag, character::complete::newline, error::Error, multi::separated_list1, sequence::{preceded, terminated}, *};
+use nom::{branch::alt, bytes::complete::tag, character::complete::{multispace0, newline}, error::Error, multi::{many0, separated_list1}, sequence::{delimited, preceded, terminated, tuple}, *};
 
 #[derive(Clone, Debug)]
-pub enum Instruction {
+enum PreInstruction {
     Forwards,
     Left,
     Right,
-    Backwards
+    Backwards,
+    Loop(Vec<PreInstruction>)
 }
 
-pub fn parse_code<'a>(i: &'a str) -> Result<Vec<Instruction>, Err<Error<&str>>> {
-    separated_list1(newline, parse_statement)(i).map(|x| x.1)
+pub fn compile(code: &str) -> Result<Vec<Instruction>, Err<Error<&str>>> {
+    let (_, preinstructions) = parse_code(code)?;
+    Ok(flatten(preinstructions))
 }
 
-fn parse_statement<'a>(i: &'a str) -> IResult<&'a str, Instruction> {
-    terminated(parse_instruction, tag(";"))(i)
+fn parse_code<'a>(i: &'a str) -> IResult<&'a str, Vec<PreInstruction>> {
+   preceded(multispace0, many0(parse_statement))(i)
 }
 
-fn parse_instruction<'a>(i: &'a str) -> IResult<&'a str, Instruction> {
+fn flatten(pres: Vec<PreInstruction>) -> Vec<Instruction> {
+    let mut instructions = vec![];
+    for pre in pres {
+        match pre {
+            PreInstruction::Forwards => instructions.push(Instruction::Forwards),
+            PreInstruction::Left => instructions.push(Instruction::Left),
+            PreInstruction::Right => instructions.push(Instruction::Right),
+            PreInstruction::Backwards => instructions.push(Instruction::Backwards),
+            PreInstruction::Loop(nested) => instructions.append(&mut flatten(nested))
+        };
+    }
+    instructions
+}
+
+fn parse_statement<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
+    terminated(alt((
+        parse_loop,
+        terminated(parse_expression, tag(";"))
+    )), multispace0)(i)
+}
+
+fn parse_expression<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
     alt((
         preceded(tag("move "), alt((
-            tag("forwards").map(|_| Instruction::Forwards),
-            tag("backwards").map(|_| Instruction::Backwards),
-            tag("left").map(|_| Instruction::Left),
-            tag("right").map(|_| Instruction::Right),
+            tag("forwards").map(|_| PreInstruction::Forwards),
+            tag("backwards").map(|_| PreInstruction::Backwards),
+            tag("left").map(|_| PreInstruction::Left),
+            tag("right").map(|_| PreInstruction::Right),
         ))),
     ))(i)
 }
 
+fn parse_loop<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
+    delimited(tuple((tag("loop"), multispace0, tag("{"))), parse_code.map(|x| PreInstruction::Loop(x)), tag("}"))(i)
+}
+
+#[derive(Clone, Debug)]
+pub enum Instruction {
+    Forwards,
+    Backwards,
+    Left,
+    Right,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{parse_instruction, parse_statement};
+    use super::{parse_expression, parse_statement};
 
     #[test]
-    fn move_instruction1() {
-        parse_instruction("move forwards").unwrap();
-        parse_instruction("move backwards").unwrap();
-        parse_instruction("move left").unwrap();
-        parse_instruction("move right").unwrap();
+    fn move_expression1() {
+        parse_expression("move forwards").unwrap();
+        parse_expression("move backwards").unwrap();
+        parse_expression("move left").unwrap();
+        parse_expression("move right").unwrap();
     }
 
     #[test]
-    fn move_instruction_wrong() {
-        parse_instruction("move diagonal").unwrap_err();
-        parse_instruction("move  right").unwrap_err();
-        parse_instruction("mov back").unwrap_err();
-        parse_instruction("move ").unwrap_err();
-        parse_instruction(" right").unwrap_err();
+    fn move_expression() {
+        parse_expression("move diagonal").unwrap_err();
+        parse_expression("move  right").unwrap_err();
+        parse_expression("mov back").unwrap_err();
+        parse_expression("move ").unwrap_err();
+        parse_expression(" right").unwrap_err();
     }
 
     #[test]

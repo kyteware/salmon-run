@@ -1,6 +1,6 @@
-use iced::{time, widget::{button, column, row, slider, text, text_editor}, Element, Length, Subscription};
+use iced::{time, widget::{button, column, row, slider, text, text_editor}, Border, Color, Element, Length, Subscription, Theme};
 
-use crate::{grid::Grid, instruction::{parse_code, Instruction}, level::Level};
+use crate::{grid::Grid, instruction::{compile, Instruction}, level::Level};
 
 #[derive(Debug, Default)]
 pub struct SalmonRun {
@@ -8,6 +8,7 @@ pub struct SalmonRun {
     level: u32,
     grid: Grid,
     code: text_editor::Content,
+    code_is_good: bool,
     levels: Vec<Level>,
     last_good_code: Vec<Instruction>
 }
@@ -20,7 +21,8 @@ impl SalmonRun {
             running: false,
             level: 1,
             grid: Grid::load_level(&levels[0], last_good_code.clone()),
-            code: text_editor::Content::with_text("move left;\nmove right\n"),
+            code: text_editor::Content::with_text("move left;\nmove right;\n"),
+            code_is_good: true,
             levels,
             last_good_code
         }
@@ -30,23 +32,23 @@ impl SalmonRun {
         match message {
             Message::ToggleRunning => { self.running = !self.running },
             Message::Tick => self.grid.tick(),
-            Message::ShuffleRocks => { self.grid.shuffle() },
-            Message::PlaceSalmon => { self.grid.reset_salmon() },
             Message::CodeAction(action) => {
                 let needs_reload = matches!(action, text_editor::Action::Edit(_));
                 self.code.perform(action);
                 if needs_reload {
-                    let new_instructions = parse_code(&self.code.text()).unwrap_or(vec![]);
+                    let new_instructions = compile(&self.code.text()).unwrap_or(vec![]);
                     if new_instructions.len() > 0 {
-                        self.grid.instructions = new_instructions;
+                        self.last_good_code = new_instructions;
+                        self.code_is_good = true;
                     } else {
-                        self.grid.instructions = vec![Instruction::Right];
+                        self.code_is_good = false;
                     }
-                    self.grid.reset_salmon();
+                    self.restart();
                 }
             }
             Message::SwitchLevel(level) => {
-                todo!("switch level")
+                self.level = level;
+                self.restart();
             }
         }
     }
@@ -56,13 +58,19 @@ impl SalmonRun {
             column!(
                 row!(
                     button(if self.running { "stop" } else { "run" }).on_press(Message::ToggleRunning),
-                    button("shuffle rocks").on_press(Message::ShuffleRocks),
-                    button("place salmon").on_press(Message::PlaceSalmon),
-                    slider(0..=1, 0, Message::SwitchLevel)
+                    text(format!("Current level: {}", self.level)),
+                    slider(1..=(self.levels.len() as u32), self.level, Message::SwitchLevel)
                 ).spacing(10),
                 self.grid.view(),
             ).spacing(10),
-            column!(text("code"), text_editor(&self.code).on_action(Message::CodeAction).height(Length::Fill))
+            column!(text("code"), text_editor(&self.code).on_action(Message::CodeAction).height(Length::Fill).style(|theme: &Theme, status| {
+                let class = <Theme as text_editor::Catalog>::default();
+                let mut style: text_editor::Style = text_editor::Catalog::style(theme, &class, status);
+                if !self.code_is_good {
+                    style.border.color = Color::new(0.8, 0.2, 0.2, 1.);
+                }
+                style
+            }))
         )   
             .padding(10)
             .spacing(10)
@@ -76,14 +84,17 @@ impl SalmonRun {
             Subscription::none()
         }
     }
+    
+    fn restart(&mut self) {
+        self.grid = Grid::load_level(&self.levels[self.level as usize - 1], self.last_good_code.clone());
+        self.running = false;
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     ToggleRunning,
     Tick,
-    ShuffleRocks,
-    PlaceSalmon,
     CodeAction(text_editor::Action),
     SwitchLevel(u32)
 }
