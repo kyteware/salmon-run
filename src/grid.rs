@@ -5,7 +5,7 @@ use crate::{app::Message, instruction::Instruction};
 
 #[derive(Debug, Default)]
 pub struct Grid {
-    tiles: [[Tile; 10]; 10],
+    tiles: [[Tile; 10]; 20],
     salmon: Vec<Salmon>,
     pub instructions: Vec<Instruction>
 }
@@ -64,8 +64,8 @@ impl Grid {
     }
 
     pub fn shuffle(&mut self) {
-        let mut tiles = <[[Tile; 10]; 10]>::default();
-        for i in 0..10 {
+        let mut tiles = <[[Tile; 10]; 20]>::default();
+        for i in 0..20 {
             for j in 0..10 {
                 if thread_rng().gen_bool(0.3) {
                     tiles[i][j] = Tile::Rock
@@ -78,8 +78,8 @@ impl Grid {
     pub fn reset_salmon(&mut self) {
         self.salmon.clear();
         for i in 0..10 {
-            if self.tiles[9][i] == Tile::Empty {
-                self.salmon.push(Salmon { x: i as u32, y: 9, next_instruction: 0 })
+            if self.tiles[19][i] == Tile::Empty {
+                self.salmon.push(Salmon { x: i as u32, y: 19, next_instruction: 0 })
             }
         }
     }
@@ -96,8 +96,7 @@ impl canvas::Program<Message> for Grid {
         bounds: iced::Rectangle,
         _cursor: mouse::Cursor,
     ) -> Vec<canvas::Geometry<Renderer>> {
-        let limiter = bounds.size().height.min(bounds.size().width);
-        let tile_size = limiter / 10.;
+        let tile_size = (bounds.size().height / 20.).min(bounds.size().width / 10.);
 
         let mut frame = Frame::new(renderer, bounds.size());
 

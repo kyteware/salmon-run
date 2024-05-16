@@ -1,4 +1,4 @@
-use iced::{time, widget::{button, column, row, text, text_editor}, Element, Length, Subscription};
+use iced::{time, widget::{button, column, row, slider, text, text_editor}, Element, Length, Subscription};
 
 use crate::{grid::Grid, instruction::{parse_code, Instruction}};
 
@@ -29,6 +29,9 @@ impl SalmonRun {
                     self.grid.reset_salmon();
                 }
             }
+            Message::SwitchLevel(level) => {
+                todo!("switch level")
+            }
         }
     }
 
@@ -38,7 +41,8 @@ impl SalmonRun {
                 row!(
                     button(if self.running { "stop" } else { "run" }).on_press(Message::ToggleRunning),
                     button("shuffle rocks").on_press(Message::ShuffleRocks),
-                    button("place salmon").on_press(Message::PlaceSalmon)
+                    button("place salmon").on_press(Message::PlaceSalmon),
+                    slider(1..=1, 1, Message::SwitchLevel)
                 ).spacing(10),
                 self.grid.view(),
             ).spacing(10),
@@ -64,5 +68,6 @@ pub enum Message {
     Tick,
     ShuffleRocks,
     PlaceSalmon,
-    CodeAction(text_editor::Action)
+    CodeAction(text_editor::Action),
+    SwitchLevel(u32)
 }
