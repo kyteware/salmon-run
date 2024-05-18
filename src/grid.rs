@@ -26,57 +26,47 @@ impl Grid {
             .into()
     }
 
-    pub fn tick(&mut self) {
+    pub fn tick(&mut self) -> bool {
+        let mut remove_list = vec![];
         for i in 0..self.salmon.len() {
             let pos = self.salmon[i].coords;
             let mut next_instruction = self.salmon[i].next_instruction;
             let instruction = self.instructions[next_instruction].clone();
+            let mut step = true;
 
             match instruction {
-                Instruction::Forwards => {
-                    let new_pos = pos.forwards();
+                Instruction::Move(dir) => {
+                    let new_pos = pos.in_direction(dir);
                     if self.tiles[new_pos.y][new_pos.x] != Tile::Rock {
                         self.salmon[i].coords = new_pos;
                     }
-                },
-                Instruction::Left => {
-                    let new_pos = pos.left();
-                    if self.tiles[new_pos.y][new_pos.x] != Tile::Rock {
-                        self.salmon[i].coords = new_pos;
-                    }
-                },
-                Instruction::Right => {
-                    let new_pos = pos.right();
-                    if self.tiles[new_pos.y][new_pos.x] != Tile::Rock {
-                        self.salmon[i].coords = new_pos;
-                    }
-                },
-                Instruction::Backwards => {
-                    let new_pos = pos.backwards();
-                    if self.tiles[new_pos.y][new_pos.x] != Tile::Rock {
-                        self.salmon[i].coords = new_pos;
-                    }
-                },
+                }
+                Instruction::Goto(i) => {
+                    next_instruction = i;
+                    step = false;
+                }
             }
-            next_instruction += 1;
+
+            let pos = self.salmon[i].coords;
+            if self.tiles[pos.y][pos.x] == Tile::Finish {
+                remove_list.push(i);
+            }
+            
+            if step { 
+                next_instruction += 1;
+            }
             self.salmon[i].next_instruction = if next_instruction < self.instructions.len() {
                 next_instruction
             } else {
                 0
             }
         }
-    }
 
-    pub fn shuffle(&mut self) {
-        let mut tiles = <[[Tile; 10]; 20]>::default();
-        for i in 0..20 {
-            for j in 0..10 {
-                if thread_rng().gen_bool(0.3) {
-                    tiles[i][j] = Tile::Rock
-                }
-            }
+        for i in remove_list.iter().rev() {
+            self.salmon.remove(*i);
         }
-        self.tiles = tiles;
+
+        self.salmon.len() == 0
     }
 }
 
@@ -113,7 +103,8 @@ impl canvas::Program<Message> for Grid {
 pub enum Tile {
     #[default]
     Empty,
-    Rock
+    Rock,
+    Finish
 }
 
 impl Tile {
@@ -121,6 +112,7 @@ impl Tile {
         match self {
             Tile::Empty => Color::from_rgb(0.25, 0.25, 0.75),
             Tile::Rock => Color::from_rgb(0.5, 0.5, 0.5),
+            Tile::Finish => Color::from_rgb(0.7, 0.7, 0.2)
         }
     }
 
@@ -128,6 +120,7 @@ impl Tile {
         match c {
             'e' => Some(Tile::Empty),
             'r' => Some(Tile::Rock),
+            'f' => Some(Tile::Finish),
             _ => None
         }
     }
@@ -150,19 +143,20 @@ impl Coords {
         Self { x, y }
     }
 
-    pub fn forwards(self) -> Self {
-        Coords::new(self.x, self.y.saturating_sub(1))
+    pub fn in_direction(self, direction: Direction) -> Self {
+        match direction {
+            Direction::Up => Coords::new(self.x, self.y.saturating_sub(1)),
+            Direction::Down => Coords::new(self.x, (self.y + 1).min(19)),
+            Direction::Left => Coords::new(self.x.saturating_sub(1), self.y),
+            Direction::Right => Coords::new((self.x + 1).min(9), self.y),
+        }
     }
+}
 
-    pub fn backwards(self) -> Self {
-        Coords::new(self.x, (self.y + 1).min(19))
-    }
-
-    pub fn left(self) -> Self {
-        Coords::new(self.x.saturating_sub(1), self.y)
-    }
-
-    pub fn right(self) -> Self {
-        Coords::new((self.x + 1).min(9), self.y)
-    }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    Down,
+    Left,
+    Right
 }

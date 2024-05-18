@@ -1,5 +1,5 @@
 use app::SalmonRun;
-use iced::{Command, Theme};
+use iced::Theme;
 
 mod app;
 mod grid;

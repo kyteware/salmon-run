@@ -1,35 +1,74 @@
-use nom::{branch::alt, bytes::complete::tag, character::complete::{multispace0, newline}, error::Error, multi::{many0, separated_list1}, sequence::{delimited, preceded, terminated, tuple}, *};
+use nom::{branch::alt, bytes::complete::tag, character::complete::{multispace0, newline}, combinator::eof, error::{Error, ErrorKind}, multi::{many0, separated_list0, separated_list1}, sequence::{delimited, preceded, terminated, tuple}, *};
+
+use crate::grid::Direction;
 
 #[derive(Clone, Debug)]
 enum PreInstruction {
-    Forwards,
-    Left,
-    Right,
-    Backwards,
+    Move(Direction),
     Loop(Vec<PreInstruction>)
 }
 
 pub fn compile(code: &str) -> Result<Vec<Instruction>, Err<Error<&str>>> {
-    let (_, preinstructions) = parse_code(code)?;
-    Ok(flatten(preinstructions))
+    let (_, (preinstructions, ended_curly)) = parse_code(code)?;
+    if ended_curly {
+        return Err(Err::Error(Error::new(code, ErrorKind::Tag)))
+    }
+    Ok(flatten(0, preinstructions).1)
 }
 
-fn parse_code<'a>(i: &'a str) -> IResult<&'a str, Vec<PreInstruction>> {
-   preceded(multispace0, many0(parse_statement))(i)
+/// if bool is true, ended with curly
+fn parse_code<'a>(i: &'a str) -> IResult<&'a str, (Vec<PreInstruction>, bool)> {
+    enum AltReturn {
+        Statement(PreInstruction),
+        Termination { curly: bool }
+    }
+    use AltReturn::*;
+    let (mut rem, _) = multispace0(i)?;
+    let mut pres = vec![];
+    loop {
+        let (r, pre) = alt((
+            tag("}").map(|_| Termination { curly: true }),
+            parse_statement.map(|x| Statement(x)),
+            eof.map(|_| Termination { curly: false })
+        ))(rem)?;
+        rem = r;
+
+        match pre {
+            Statement(pre) => pres.push(pre),
+            Termination { curly } => { break Ok((rem, (pres, curly))) }
+        }
+
+        let (r, _) = multispace0(rem)?;
+        rem = r;
+    }
 }
 
-fn flatten(pres: Vec<PreInstruction>) -> Vec<Instruction> {
+fn parse_code_block<'a>(i: &'a str) -> IResult<&'a str, Vec<PreInstruction>> {
+    let (rem, _) = tuple((tag("{"), multispace0))(i)?;
+    let (rem, (code, ends_curly)) = parse_code(rem)?;
+    if ends_curly {
+        Ok((rem, code))
+    } else {
+        return Err(Err::Error(Error::new(rem, ErrorKind::Eof)))
+    }
+}
+
+fn flatten(start: usize, pres: Vec<PreInstruction>) -> (usize, Vec<Instruction>) {
+    let mut loc = start;
     let mut instructions = vec![];
     for pre in pres {
         match pre {
-            PreInstruction::Forwards => instructions.push(Instruction::Forwards),
-            PreInstruction::Left => instructions.push(Instruction::Left),
-            PreInstruction::Right => instructions.push(Instruction::Right),
-            PreInstruction::Backwards => instructions.push(Instruction::Backwards),
-            PreInstruction::Loop(nested) => instructions.append(&mut flatten(nested))
+            PreInstruction::Move(dir) => instructions.push(Instruction::Move(dir)),
+            PreInstruction::Loop(nested) => {
+                let (len, mut flattened) = flatten(loc, nested);
+                flattened.push(Instruction::Goto(loc));
+                instructions.append(&mut flattened);
+                loc += len;
+            }
         };
+        loc += 1;
     }
-    instructions
+    (loc - start, instructions)
 }
 
 fn parse_statement<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
@@ -40,26 +79,28 @@ fn parse_statement<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
 }
 
 fn parse_expression<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
+    preceded(tag("move "), parse_direction.map(|x| PreInstruction::Move(x)))(i)
+}
+
+fn parse_direction<'a>(i: &'a str) -> IResult<&'a str, Direction> {
     alt((
-        preceded(tag("move "), alt((
-            tag("forwards").map(|_| PreInstruction::Forwards),
-            tag("backwards").map(|_| PreInstruction::Backwards),
-            tag("left").map(|_| PreInstruction::Left),
-            tag("right").map(|_| PreInstruction::Right),
-        ))),
+        tag("up").map(|_| Direction::Up),
+        tag("down").map(|_| Direction::Down),
+        tag("left").map(|_| Direction::Left),
+        tag("right").map(|_| Direction::Right)
     ))(i)
 }
 
 fn parse_loop<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
-    delimited(tuple((tag("loop"), multispace0, tag("{"))), parse_code.map(|x| PreInstruction::Loop(x)), tag("}"))(i)
+    let (r, _) = tuple((tag("loop"), multispace0))(i)?;
+    let (rem, code) = parse_code_block(r)?;
+    Ok((rem, PreInstruction::Loop(code)))
 }
 
 #[derive(Clone, Debug)]
 pub enum Instruction {
-    Forwards,
-    Backwards,
-    Left,
-    Right,
+    Move(Direction),
+    Goto(usize)
 }
 
 #[cfg(test)]
@@ -68,8 +109,8 @@ mod tests {
 
     #[test]
     fn move_expression1() {
-        parse_expression("move forwards").unwrap();
-        parse_expression("move backwards").unwrap();
+        parse_expression("move up").unwrap();
+        parse_expression("move down").unwrap();
         parse_expression("move left").unwrap();
         parse_expression("move right").unwrap();
     }
@@ -91,8 +132,8 @@ mod tests {
 
     #[test]
     fn statement_wrong() {
-        parse_statement("mo forwards;").unwrap_err();
-        parse_statement("move backwards").unwrap_err();
+        parse_statement("mo up;").unwrap_err();
+        parse_statement("move down").unwrap_err();
         parse_statement(";").unwrap_err();
     }
 }
