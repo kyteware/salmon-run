@@ -1,4 +1,4 @@
-use iced::{time, widget::{button, column, row, slider, text, text_editor}, Border, Color, Element, Length, Subscription, Theme};
+use iced::{time, widget::{button, column, row, slider, text, text_editor}, Color, Element, Length, Subscription, Theme};
 
 use crate::{grid::{Direction, Grid}, instruction::{compile, Instruction}, level::Level};
 

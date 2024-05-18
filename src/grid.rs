@@ -1,7 +1,6 @@
 use iced::{mouse, widget::{canvas::{self, Frame, Path}, Canvas}, Color, Element, Length, Point, Renderer, Size, Theme};
-use rand::{Rng, thread_rng};
 
-use crate::{app::Message, instruction::Instruction, level::Level};
+use crate::{app::Message, instruction::{Conditional, Instruction}, level::Level};
 
 #[derive(Debug, Default)]
 pub struct Grid {
@@ -44,6 +43,23 @@ impl Grid {
                 Instruction::Goto(i) => {
                     next_instruction = i;
                     step = false;
+                }
+                Instruction::BranchIfNot { cond, dest } => {
+                    let cond_res = match cond {
+                        Conditional::TileCheck { dir, tile } => {
+                            if let Some(check_pos) = pos.in_direction_checked(dir) {
+                                let check_tile = self.tiles[check_pos.y][check_pos.x];
+                                tile == check_tile
+                            } else {
+                                tile == Tile::Rock
+                            }
+                        },
+                    };
+
+                    if !cond_res {
+                        step = false;
+                        next_instruction = dest
+                    }
                 }
             }
 
@@ -143,13 +159,41 @@ impl Coords {
         Self { x, y }
     }
 
-    pub fn in_direction(self, direction: Direction) -> Self {
+    pub fn in_direction_checked(self, direction: Direction) -> Option<Self> {
         match direction {
-            Direction::Up => Coords::new(self.x, self.y.saturating_sub(1)),
-            Direction::Down => Coords::new(self.x, (self.y + 1).min(19)),
-            Direction::Left => Coords::new(self.x.saturating_sub(1), self.y),
-            Direction::Right => Coords::new((self.x + 1).min(9), self.y),
+            Direction::Up => {
+                if self.y > 0 {
+                    Some(Coords::new(self.x, self.y-1))
+                } else {
+                    None
+                }
+            }
+            Direction::Down => {
+                if self.y < 19 {
+                    Some(Coords::new(self.x, self.y+1))
+                } else {
+                    None
+                }
+            }
+            Direction::Left => {
+                if self.x > 0 {
+                    Some(Coords::new(self.x-1, self.y))
+                } else {
+                    None
+                }
+            }
+            Direction::Right => {
+                if self.x < 19 {
+                    Some(Coords::new(self.x+1, self.y))
+                } else {
+                    None
+                }
+            }
         }
+    }
+
+    pub fn in_direction(self, direction: Direction) -> Self {
+        self.in_direction_checked(direction).unwrap_or_else(|| self)
     }
 }
 

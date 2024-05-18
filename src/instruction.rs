@@ -1,11 +1,12 @@
-use nom::{branch::alt, bytes::complete::tag, character::complete::{multispace0, newline}, combinator::eof, error::{Error, ErrorKind}, multi::{many0, separated_list0, separated_list1}, sequence::{delimited, preceded, terminated, tuple}, *};
+use nom::{branch::alt, bytes::complete::tag, character::complete::multispace0, combinator::eof, error::{Error, ErrorKind}, sequence::{preceded, terminated, tuple}, *};
 
-use crate::grid::Direction;
+use crate::grid::{Direction, Tile};
 
 #[derive(Clone, Debug)]
 enum PreInstruction {
     Move(Direction),
-    Loop(Vec<PreInstruction>)
+    Loop(Vec<PreInstruction>),
+    If((Conditional, Vec<PreInstruction>))
 }
 
 pub fn compile(code: &str) -> Result<Vec<Instruction>, Err<Error<&str>>> {
@@ -65,6 +66,12 @@ fn flatten(start: usize, pres: Vec<PreInstruction>) -> (usize, Vec<Instruction>)
                 instructions.append(&mut flattened);
                 loc += len;
             }
+            PreInstruction::If((cond, nested)) => {
+                let (len, mut flattened) = flatten(loc + 1, nested);
+                instructions.push(Instruction::BranchIfNot { cond, dest: loc + len + 1 });
+                instructions.append(&mut flattened);
+                loc += len;
+            }
         };
         loc += 1;
     }
@@ -74,6 +81,7 @@ fn flatten(start: usize, pres: Vec<PreInstruction>) -> (usize, Vec<Instruction>)
 fn parse_statement<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
     terminated(alt((
         parse_loop,
+        parse_if,
         terminated(parse_expression, tag(";"))
     )), multispace0)(i)
 }
@@ -91,16 +99,42 @@ fn parse_direction<'a>(i: &'a str) -> IResult<&'a str, Direction> {
     ))(i)
 }
 
+fn parse_tile<'a>(i: &'a str) -> IResult<&'a str, Tile> {
+    alt((
+        tag("rock").map(|_| Tile::Rock),
+        tag("empty").map(|_| Tile::Empty),
+        tag("finish").map(|_| Tile::Finish),
+    ))(i)
+}
+
 fn parse_loop<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
     let (r, _) = tuple((tag("loop"), multispace0))(i)?;
     let (rem, code) = parse_code_block(r)?;
     Ok((rem, PreInstruction::Loop(code)))
 }
 
+fn parse_if<'a>(i: &'a str) -> IResult<&'a str, PreInstruction> {
+    let (r, (_, _, dir, _, tile, _)) = tuple((tag("if"), multispace0, parse_direction, multispace0, parse_tile, multispace0))(i)?;
+    let (rem, code) = parse_code_block(r)?;
+    Ok((rem, PreInstruction::If((Conditional::TileCheck { dir, tile }, code))))
+}
+
 #[derive(Clone, Debug)]
 pub enum Instruction {
     Move(Direction),
-    Goto(usize)
+    Goto(usize),
+    BranchIfNot {
+        cond: Conditional,
+        dest: usize
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Conditional {
+    TileCheck {
+        dir: Direction,
+        tile: Tile
+    }
 }
 
 #[cfg(test)]
