@@ -183,7 +183,7 @@ impl Coords {
                 }
             }
             Direction::Right => {
-                if self.x < 19 {
+                if self.x < 9 {
                     Some(Coords::new(self.x+1, self.y))
                 } else {
                     None
