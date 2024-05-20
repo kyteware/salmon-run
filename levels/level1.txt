@@ -19,3 +19,6 @@ rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 1
+Welcome to Salmon Run! Let's start off with a simple task.
+Using the ```move up;``` and ```move left;``` instructions, teach your
+salmon how to get to his destination.

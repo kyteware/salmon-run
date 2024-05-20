@@ -1,12 +1,15 @@
 use std::{fs::{self, File}, io::Read, path::PathBuf};
 
+use nom::{character::complete::u32 as parse_u32, IResult};
+
 use crate::grid::{Coords, Tile};
 
 #[derive(Debug, Default)]
 pub struct Level {
     pub number: u32,
     pub tiles: [[Tile; 10]; 20],
-    pub salmon_starts: Vec<Coords>
+    pub salmon_starts: Vec<Coords>,
+    pub instructions: String
 }
 
 impl Level {
@@ -37,7 +40,13 @@ impl Level {
             }
         }
 
-        level.number = (&chars[220..]).iter().collect::<String>().parse::<u32>().ok()?;
+        let rem = (&chars[220..]).iter().collect::<String>();
+        let res: IResult<&str, u32> = parse_u32(rem.as_str());
+        let (instructions, num) = res.ok()?;
+        let instructions = instructions.trim().to_owned();
+
+        level.number = num;
+        level.instructions = instructions;
 
         Some(level)
     }

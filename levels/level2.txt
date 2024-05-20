@@ -5,17 +5,19 @@ rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
-rrrrfeerrr
+rrrrseerrr
 rrrrrrerrr
-rrrrrrsrrr
+rrrrrrfrrr
 rrrrrrrrrr
 rrrrrrrrrr
-rfeerrrrrr
+rseerrrrrr
 rrrerrrrrr
-rrrsrrrrrr
+rrrfrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 rrrrrrrrrr
 2
+Now, let's use the `move down;` and `move right;` 
+instructions. All of your salmon will follow the same instructions.

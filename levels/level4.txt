@@ -1,0 +1,23 @@
+rrrrrrrrrr
+feeeeeeees
+rrrrrrrrrr
+seeeeeeeef
+rrrrrrrrrr
+feeeeeeees
+rrrrrrrrrr
+seeeeeeeef
+rrrrrrrrrr
+feeeeeeees
+rrrrrrrrrr
+seeeeeeeef
+rrrrrrrrrr
+feeeeeeees
+rrrrrrrrrr
+seeeeeeeef
+rrrrrrrrrr
+feeeeeeees
+rrrrrrrrrr
+seeeeeeeef
+4
+To have our salmon do different things, we can have them decide actions based on their surroundings.
+Use `if <direction> <tile> {}` to let them decide, for example `if left rock {}`.

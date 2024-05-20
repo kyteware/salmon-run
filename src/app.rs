@@ -11,12 +11,14 @@ pub struct SalmonRun {
     code_is_good: bool,
     levels: Vec<Level>,
     last_good_code: Vec<Instruction>,
-    won: bool
+    won: bool,
+    instructions: String
 }
 
 impl SalmonRun {
     pub fn new() -> Self {
         let levels = Level::load_all();
+        let instructions = levels[0].instructions.clone();
         let last_good_code = vec![Instruction::Move(Direction::Left), Instruction::Move(Direction::Right)];
         Self {
             running: false,
@@ -26,7 +28,8 @@ impl SalmonRun {
             code_is_good: true,
             levels,
             last_good_code,
-            won: false
+            won: false,
+            instructions
         }
     }
 
@@ -82,23 +85,7 @@ impl SalmonRun {
                     }
                     style
                 }),
-                text(
-r##"Instructions
-Movement:
-```
-move right;
-move left;
-move down;
-move up;
-```
-
-Loops:
-```
-loop {
- move up;
-}
-```"##
-                ),
+                text(&self.instructions),
             )
         )   
             .padding(10)
@@ -118,6 +105,7 @@ loop {
         self.won = false;
         self.grid = Grid::load_level(&self.levels[self.level as usize - 1], self.last_good_code.clone());
         self.running = false;
+        self.instructions = self.levels[self.level as usize - 1].instructions.clone()
     }
 }
 
